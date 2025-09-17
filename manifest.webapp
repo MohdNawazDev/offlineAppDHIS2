@@ -1,0 +1,19 @@
+{
+    "version": "10.0",
+    "name": "Offline app",
+    "description": "Offline app",
+    "launch_path": "/index.html",
+    "appType": "APP",
+    "icons": {
+        "16": "assets/images/fav.png",
+        "48": "assets/images/fav.png",
+        "128": "assets/images/fav.png"
+    },
+    "default_locale": "en",
+    "activities": {
+        "dhis": {
+            "href": "*",
+            "namespace": "DST-namespace"
+        }
+    }
+}
