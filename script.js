@@ -9,111 +9,110 @@ const baseUrl = "https://links.hispindia.org/myr_registry";
 const username = "admin";
 const password = "district";
 
-let db;
+let programDb;
+let orgUnitDb;
 
-// 1. Delete old DB first
-let deleteRequest = indexedDB.deleteDatabase("Program Db");
 
-deleteRequest.onsuccess = () => {
-  console.log("Program Db deleted successfully.");
+let DB_VERSION = 1;
 
-  // 2. Now open a fresh DB (new version will trigger onupgradeneeded)
-  let openDB = indexedDB.open("Program Db", 1);
 
-  openDB.onsuccess = (e) => {
-    db = e.target.result;
-    console.log("Db created successfully");
-    // Call the function to either fetch or read from cache
-    loadAndCachePrograms();
-  };
 
-  openDB.onupgradeneeded = (e) => {
-    console.log("On UpgradeNeeded Executed...");
-    db = e.target.result;
-    if (!db.objectStoreNames.contains("Program Names")) {
-      let store = db.createObjectStore("Program Names", { keyPath: "id" });
-      store.createIndex("by_name", "displayName", { unique: false });
+//Opening the db 
+let openProgramDb = indexedDB.open("Program Db", DB_VERSION);
+let openOrgUnitDb = indexedDB.open("OrgUnit Db", DB_VERSION);
+
+
+//OnUpgradedNeeded      
+openProgramDb.onupgradeneeded = (e) => {
+    programDb = e.target.result;
+
+    if(!programDb.objectStoreNames.contains("Program Names")){
+        let store =  programDb.createObjectStore("Program Names", {keyPath: "id"});
+        store.createIndex("by_names", "name", {unique: false});
     }
-  };
-
-  openDB.onerror = (e) => {
-    console.log("On Error Executed", e);
-  };
-};
-
-deleteRequest.onerror = (e) => {
-  console.error("Error deleting Program Db", e);
-};
-
-deleteRequest.onblocked = () => {
-  console.warn("Delete blocked. Please close other tabs using this DB.");
-};
-
-
-async function loadAndCachePrograms() {
-  try {
-    const res = await fetch(`${baseUrl}/api/programs.json`, {
-      headers: {
-        Accept: "application/json",
-        Authorization: "Basic " + btoa(`${username}:${password}`)
-      }
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      console.log("Programs from network:", data);
-      saveProgramToDb(data.programs);
-    } else {
-      console.error("Network request failed with status:", res.status, res.statusText);
-      // The fetch failed, so we'll read from IndexedDB
-      readProgramsFromDb();
-    }
-  } catch (err) {
-    // This catches network-level errors (e.g., no internet connection)
-    console.error("Fetch error:", err);
-    readProgramsFromDb();
-  }
 }
 
+openOrgUnitDb.onupgradeneeded = (e) => {
+    orgUnitDb = e.target.result;
+
+    if(!orgUnitDb.objectStoreNames.contains("OrgUnit Data")){
+        let store = orgUnitDb.createObjectStore("OrgUnit Data", {keyPath: "id"});
+        store.createIndex("by_names", "name", {unique: false});
+        store.createIndex("by_id", "id", {unique: false});
+        store.createIndex("by_level", "level", {unique: false});
+    }
+}
+
+
+openProgramDb.onsuccess = (e) => {
+    programDb = e.target.result;
+    console.log("OpenProgram opened Successfully.");
+    checkAndLoadData();
+}
+
+openOrgUnitDb.onsuccess = (e) => {
+    orgUnitDb = e.target.result;
+    console.log("OpenOrgUnit opened Successfully");
+    checkAndLoadData();
+}
+
+openProgramDb.onerror = (err) => console.error("Error", err);
+openOrgUnitDb.onerror = (err) => console.error("Error", err)
+
+
+let dbCountReady = 0;
+const DB_Count = 2;
+
+function checkAndLoadData(){
+    dbCountReady++;
+    
+    if(dbCountReady == DB_Count){
+        loadAndCacheData();
+    }
+}
+
+
+ async function loadAndCacheData() {
+    try {
+        const programRes = await fetch(`${baseUrl}/api/programs.json`, {
+            headers: {
+                Accept: "Application/json",
+                Authorization: "Basic " +  btoa(`${username}:${password}`)
+            }
+        });
+        const programData = await programRes.json();
+        saveProgramToDb(programData.programs);
+
+
+        const orgUnitRes = await fetch(`${baseUrl}/api/organisationUnits.json?fields=name,id,level`, {
+            headers: {
+                Accept: "Application/json",
+                Authorization: "Basic " +  btoa(`${username}:${password}`)
+            }
+        });
+        const orgUnitData = await orgUnitRes.json();
+        saveOrgUnitToDb(orgUnitData.organisationUnits);
+
+
+
+    } catch (error) {
+        console.log("Network fetch failed. relying on caching data");
+        
+    }
+}
 function saveProgramToDb(programs) {
-  let tx = db.transaction("Program Names", "readwrite");
-  let store = tx.objectStore("Program Names");
-
-  programs.forEach((program) => {
-    let request = store.put(program);
-    request.onsuccess = () => {
-      console.log("Saved Program Successfully:", program.displayName);
-    };
-    request.onerror = (err) => {
-      console.error("Error while loading the Program", err);
-    };
-  });
-
-  tx.oncomplete = () => {
-    console.log("All programs saved to Index Db");
-  };
+    let tx = programDb.transaction("Program Names", "readwrite");
+    let store = tx.objectStore("Program Names");
+    programs.forEach(program => store.put(program));
+    tx.oncomplete = () => console.log("All Program Data Saved Successfully.");
 }
 
-
-function readProgramsFromDb() {
-  let tx = db.transaction("Program Names", "readonly");
-  let store = tx.objectStore("Program Names");
-  let request = store.getAll();
-
-  request.onsuccess = (e) => {
-    let programs = e.target.result;
-    console.log("Programs from IndexedDB:", programs);
-    if (programs.length === 0) {
-      console.log("No programs found in IndexedDB.");
-    }
-  };
-
-  request.onerror = (err) => {
-    console.error("Error reading programs from IndexedDB", err);
-  };
+function saveOrgUnitToDb(orgUnits) {
+    let tx = orgUnitDb.transaction("OrgUnit Data", "readwrite");
+    let store = tx.objectStore("OrgUnit Data");
+    orgUnits.forEach(orgUnit => store.put(orgUnit));
+    tx.oncomplete = () => console.log("All OrgUnit Data Saved Successfully.");
 }
-
-
 
 
 

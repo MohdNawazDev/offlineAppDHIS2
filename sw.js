@@ -1,4 +1,4 @@
-const staticCacheName = 'offline-app-v2';
+const staticCacheName = 'offline-app-v4';
 
 const assets = [
     './',
