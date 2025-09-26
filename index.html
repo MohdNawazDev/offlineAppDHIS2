@@ -5,9 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Welcome to DHIS2</h1>
+    <h1>Select Program and OrgUnit</h1>
+    
+    <select id="programDropDown">
+    </select>
+
+    <div id="orgUnitTreeContainer" style="margin-bottom: 8px; border: 1px solid #ccc; padding: 10px; height: 800px; width: 355px; overflow-y: auto;">
+    </div>
+
+    <div id="dataLoader"></div>
+
     <script type="module" src="script.js"></script>
 </body>
 </html>

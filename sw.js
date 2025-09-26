@@ -1,8 +1,10 @@
-const staticCacheName = 'offline-app-v4';
+const staticCacheName = 'offline-app-v17';
+const dynamicCacheName = 'offline-app-v18';
 
 const assets = [
     './',
     './index.html',
+    './style.css',
     './script.js',
     './manifest.json',
     './icons/icon-128x128.png',
@@ -31,7 +33,14 @@ self.addEventListener('fetch', (e) => {
         caches.match(e.request).then(cacheMatch => {
             // If a match is found in the cache, serve it.
             // Otherwise, perform a network request.
-            return cacheMatch || fetch(e.request);
+            return cacheMatch || fetch(e.request)
+
+            .then(fetchResp => {
+                return caches.open(dynamicCacheName).then(cache => {
+                    cache.put(e.request, fetchResp.clone())
+                    return fetchResp;   
+                })
+            })
         })
     );
 });
