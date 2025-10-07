@@ -1,5 +1,5 @@
-const staticCacheName = 'offline-app-v17';
-const dynamicCacheName = 'offline-app-v18';
+const staticCacheName = 'offline-app-v42';
+const dynamicCacheName = 'offline-app-v41';
 
 const assets = [
     './',

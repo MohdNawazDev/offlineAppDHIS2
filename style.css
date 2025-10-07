@@ -1,3 +1,13 @@
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f4f4f4;
+  padding: 20px;
+}
 #loader {
   width: fit-content;
   font-weight: bold;
@@ -11,3 +21,9 @@
   content:"Loading Data..."
 }
 @keyframes l2 {to{background-size: 100% 3px}}
+
+
+select#programDropDown{
+  height: 33px;
+  padding-left: 5px;
+}

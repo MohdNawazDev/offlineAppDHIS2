@@ -196,8 +196,6 @@ function loadPrograms() {
 programDropDown.addEventListener("change", async(e) => {
   const programId = e.target.value; 
 
-  
-  
   if(!programId){
     orgUnitTreeContainer.style.display = "none";
     return; 
@@ -300,7 +298,7 @@ function renderOrgUnitTreeList(nodes, parentElement, isRoot = false) {
 
       // Root level starts expanded, children start collapsed
       icon.textContent = isRoot ? '▼' : '▶';
-      icon.classList.add('tree-toggler');
+      icon.classList.add('tree-toggler'); 
       textContainer.appendChild(icon);
     } else {
       textContainer.innerHTML += '<span class="tree-toggler" style="color: transparent;">▶</span>';
@@ -318,4 +316,177 @@ function renderOrgUnitTreeList(nodes, parentElement, isRoot = false) {
 
   parentElement.appendChild(ul);
 }
+
+orgUnitTreeContainer.addEventListener("click", (e) => {
+
+    if(e.target.dataset && e.target.dataset.id){
+      const programId = programDropDown.value;
+      const orgUnitId = e.target.dataset.id;
+
+      if(programId && orgUnitId){
+        fetchTrackedEntities(programId, orgUnitId);
+      }
+    }
+})
+
+async function fetchTrackedEntities(){
+
+  if(loader) loader.style.display = 'block';
+
+  const programId = "AvmN1naRvHk";
+  const orgUnitId = "LichhR5JRuK";
+
+  try {
+    const url = `${baseUrl}/api/tracker/trackedEntities.json?program=${programId}&orgUnit=${orgUnitId}&pageSize=20`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        Authorization: "Basic " + btoa(`${username}:${password}`)
+      }
+    });
+
+    const data = await res.json();
+    console.log("TrackedEntities", data);
+    
+    displayTrackedEntities(data);
+
+  } catch (err) {
+    console.error("Error while fetching the tracked Entities", err);
+  }finally{
+    if(loader) loader.style.display = "none";
+  }
+}
+
+window.addEventListener('load', () => {
+  
+  fetchTrackedEntities();
+})
+
+// reading orgUnit data 
+
+
+async function syncOrgUnitsToServer() {
+    if (loader) loader.style.display = 'block';
+
+    try {
+        
+        const tx = orgUnitDb.transaction("OrgUnit Data", "readonly");
+        const store = tx.objectStore("OrgUnit Data");
+        
+        const units = await new Promise((resolve, reject) => {
+            const req = store.getAll();
+            req.onsuccess = (e) => resolve(e.target.result);
+            req.onerror = (e) => reject(e.target.error);
+        });
+
+        console.log(`Preparing to sync ${units.length} Organisation Units...`);
+
+        
+        const updatedUrl = `${baseUrl}/api/organisationUnits`;
+
+        const updatePayload = {
+          
+          "name": "Testing OrgUnit",
+          "shortName": "My Testing OrgUnit",
+          "parent": { "id" : "ImspTQPwCqd"}
+
+
+        }
+        const response = await fetch(updatedUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json', 
+                Authorization: "Basic " + btoa(`${username}:${password}`)
+            },
+            
+            body: JSON.stringify(updatePayload) 
+        });
+
+        if (response.ok) {
+            console.log("Organisation Units successfully synced to DHIS2 via /api/metadata!");
+            const syncResult = await response.json();
+            console.log("Server response:", syncResult);
+        } else {
+            console.error(`Failed to sync Organisation Units. Status: ${response.status}`);
+            const errorText = await response.text();
+            console.error("Server error details:", errorText);
+        }
+
+    } catch (error) {
+        console.error("Error during IndexedDB read or server sync:", error);
+    } finally {
+        if (loader) loader.style.display = 'none';
+    }
+}
+
+//tracked enities 
+
+let trackedEntitiesData = [];
+
+//for receving api data and triggering table rendering 
+function displayTrackedEntities(data){
+  trackedEntitiesData = data.trackedEntities || [];
+  renderTable(trackedEntitiesData);
+}
+
+
+//render table 
+function renderTable(entities) {
+  const container = document.getElementById('trackedEntityContainer');
+  container.innerHTML = '';
+
+  if (!entities || entities.length === 0) {
+    console.log("No Tracked Entities Data");
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.style.borderCollapse = "collapse";
+  table.style.width = "100%";
+
+  // Create header row
+  const header = table.insertRow();
+  ['Date of Birth', 'First Name', 'Age', 'Unique System Identifier'].forEach((text, index) => {
+    const th = document.createElement('th');
+    th.innerText = text;
+    th.style.border = "1px solid #ccc";
+    th.style.padding = "8px";
+    th.style.cursor = "pointer";
+    th.addEventListener('click', () => sortTableByColumn(index));
+    header.appendChild(th);
+  });
+
+  // Define attribute UIDs
+  const Name_UID = "f9aoiBUWNoh";
+  const DOB_UID = "CdGAXOR8ao4";
+  const Age_UID = "t5M4LVInZVo";
+  const UniqueId_UID = "vIxginDQcrk";
+
+  entities.forEach(entitiesData => {
+    if (!entitiesData || !entitiesData.attributes) return;
+
+    
+    const attrMap = {};
+    entitiesData.attributes.forEach(attr => {
+      attrMap[attr.attribute] = attr.value;
+    });
+
+    // Now get values directly from map
+    const row = table.insertRow();
+    [
+      attrMap[DOB_UID] || "",
+      attrMap[Name_UID] || "",
+      attrMap[Age_UID] || "",
+      attrMap[UniqueId_UID] || ""
+    ].forEach(val => {
+      const cell = row.insertCell();
+      cell.innerText = val;
+      cell.style.border = "1px solid #ccc";
+      cell.style.padding = "8px";
+    });
+  });
+
+  container.appendChild(table);
+}
+
 
